@@ -1,0 +1,32 @@
+{
+  "poll_interval": 0.5,
+  "cooldown": 10,
+  "skip_while_printing": true,
+  "exclusive": true,
+  "set_location": true,
+  "storage_location": "Shelf",
+
+  "feedback": {
+    "popup": true,
+    "popup_seconds": 4,
+    "gcode": {
+      "assigned": "SPOOL_SCAN_OK",
+      "cleared": "SPOOL_SCAN_CLEARED",
+      "not_found": "SPOOL_SCAN_ERROR"
+    }
+  },
+
+  "web": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8090,
+    "allow_edit": false
+  },
+
+  "printers": [
+    { "name": "Printer 1", "moonraker": "http://192.168.1.101:7125" },
+    { "name": "Printer 2", "moonraker": "http://192.168.1.102:7125", "location": "Voron 2.4" },
+    { "name": "Printer 3", "moonraker": "http://192.168.1.103:7125",
+      "snapshot_url": "http://192.168.1.103/webcam/?action=snapshot" }
+  ]
+}

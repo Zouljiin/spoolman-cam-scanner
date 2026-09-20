@@ -1,0 +1,5 @@
+opencv-python-headless>=4.8
+numpy
+requests
+# optional, more forgiving with blurry / small codes (needs the system library libzbar0):
+# pyzbar

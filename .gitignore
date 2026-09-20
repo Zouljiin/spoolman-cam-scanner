@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+
+# your real settings (printer IPs, API keys) never get committed
+config.json
