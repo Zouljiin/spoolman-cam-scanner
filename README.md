@@ -21,7 +21,7 @@ rest. No NFC readers, no new tags, nothing installed on the printers.
 - Updates the spool's **Location** in Spoolman to the printer's name.
 - Takes the spool **off the printer it came from**, and puts the spool it replaces back on the shelf.
 - A special **"clear spool" label** un-assigns the current spool.
-- **Confirms every scan** in the Mainsail/Fluidd console, with an optional pop-up, optional beeps or LEDs on the printer, and an optional command on the server.
+- **Confirms every scan** in the Mainsail/Fluidd console, with an optional pop-up, optional beeps or LEDs on the printer (for when you can't see the screen), and an optional command on the server. None of the optional parts are needed for it to work.
 - An optional **live page**: a card per printer, a colour-coded log, and add/edit/remove printers from the browser. It embeds in dashboards such as Homepage, Dashy and Home Assistant.
 
 ```
@@ -50,6 +50,7 @@ covered by automated tests against simulated printers but **has not yet been ver
 ## Requirements
 
 - Klipper printers running **Moonraker with the `[spoolman]` component enabled**, each with a webcam configured in Moonraker
+  (with the scanner machine's address allowed in Moonraker's `trusted_clients`, which the usual private-network defaults already cover)
 - A running **Spoolman** server whose spool labels carry a QR code (Spoolman's default labels do)
 - Python 3.9+ on the machine that runs the scanner, with `opencv-python-headless`, `numpy` and `requests`
 
@@ -79,20 +80,65 @@ venv/bin/python spool_cam_scanner.py -c config.json --dry-run
 
 Hold a spool label up to a printer's camera (15-30 cm away, so the QR fills a good part of the picture). You should see a
 `setting active spool -> #41 ...` line. `--dry-run` changes nothing; drop the flag to go live, then follow
-[docs/installation.md](docs/installation.md) to run it as a service (the installer above does this for you).
+[docs/installation.md](docs/installation.md) to run it as a service (the installer above does this for you). To watch it work in a
+browser, turn on [the live page](#the-live-page).
+
+## Optional: beeps on the printer
+
+**The scanner works the same with or without these macros.** Scanning, setting the active spool, updating locations and clearing spools
+never depend on them. They exist only to give you **feedback at the printer**, a beep or a light, for when you're standing at the machine and
+can't see the Mainsail/Fluidd screen. Nothing has to be added to your printers for the scanner to work: every scan is already confirmed with a
+message in the printer's console (this uses Klipper's `[respond]`, which the standard `mainsail.cfg` / `fluidd.cfg` already include), and an
+optional pop-up is just a setting in `config.json`.
+
+If you do want a printer to **beep** (or flash LEDs), it needs a few small macros. On each printer that should beep:
+
+1. Copy [`klipper/spool_feedback.cfg`](klipper/spool_feedback.cfg) into the printer's config folder, next to `printer.cfg`
+   (in Mainsail: **Machine**, then upload it or create a new file and paste it in).
+2. Add this line to `printer.cfg`, then click **Save & Restart**:
+   ```
+   [include spool_feedback.cfg]
+   ```
+3. Check it: in the **Macros** panel, press `SPOOL_SCAN_OK`. It needs an `M300` beep macro and a buzzer; many printers already have one
+   (type `M300` in the console to see), and the file includes an example for those that don't.
+4. Tell the scanner to use the macros, in the `feedback` section of `config.json`, then restart the scanner:
+   ```json
+   "gcode": { "assigned": "SPOOL_SCAN_OK", "cleared": "SPOOL_SCAN_CLEARED", "not_found": "SPOOL_SCAN_ERROR" }
+   ```
+
+Don't turn the macros on for a printer that doesn't have them installed, or its console will show `Unknown command` on every scan
+(harmless, but noisy). Full details, including how to switch them off for a single printer, are in [docs/feedback.md](docs/feedback.md).
 
 ## The live page
 
-Turn it on with `"web": {"enabled": true}` in `config.json`. Each printer gets a card: a status dot for the **camera**, Klipper's
-**Printer Status**, the active spool, and the last scan. Long lines can wrap or scroll, printers can be hidden from the log, and
-each printer gets its own log colour. Settings are remembered in your browser.
+A web page that shows what the scanner is doing. It's optional, and it's a good way to check everything works.
 
-With `"allow_edit": true` you can add, edit, auto-detect and remove printers from the page, including a location drop-down filled
-from Spoolman and a colour picker:
+**Turn it on.** Add this to `config.json` and restart the scanner (`sudo systemctl restart spool-cam-scanner`). If you used the installer's
+guided setup, it's already on:
 
-<img alt="The edit-printer form with Auto detect, a Spoolman location drop-down and a log colour picker" src="docs/images/edit-printer.png" width="420">
+```json
+"web": { "enabled": true, "port": 8090 }
+```
 
-See [docs/dashboards.md](docs/dashboards.md) and [docs/managing-printers.md](docs/managing-printers.md).
+**Open it.** In a browser on the same network, go to `http://<scanner-machine-address>:8090/`, for example `http://192.168.1.10:8090/`. The
+scanner's log prints the port at startup (`web page listening on ...`), and `hostname -I` on the scanner machine shows its address.
+
+**What you'll see and how to use it**
+
+- **A card per printer.** The coloured dot is the **camera** (green = working, red = failing, hover for the reason). **Printer Status** is Klipper's
+  own state (standby, printing, paused, ...). Below that: the active spool and the last scan message.
+- **The log** underneath is colour-coded by printer. The **levels** menu can hide warnings; **Pause** freezes it; **Clear view** empties it.
+- Each card's **Hide / Show** button hides or shows that printer's lines in the log. **Long text: Wrap / Scroll** changes how long lines on the cards
+  are shown. These choices are remembered in your browser.
+- **Manage printers** (add, edit, auto-detect, remove, choose a log colour) appears when you also set `"allow_edit": true`, optionally with an
+  `"edit_token"` password. The Moonraker address is all you need to add a printer: click **Auto detect** to fill in the rest.
+
+<img alt="The edit-printer form with Auto detect, a Spoolman location drop-down, a log colour picker and the beep-macros checkbox" src="docs/images/edit-printer.png" width="420">
+
+- **Dashboards.** The page can be embedded in Homepage, Dashy, Home Assistant and similar; copy-paste snippets are in `integrations/`.
+
+The page has **no login**, so keep it on a trusted network and never expose the port to the internet. Details: [docs/dashboards.md](docs/dashboards.md)
+and [docs/managing-printers.md](docs/managing-printers.md).
 
 ## Documentation
 

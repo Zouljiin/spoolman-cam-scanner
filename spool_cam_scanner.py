@@ -552,6 +552,8 @@ body.scroll-text .card .tx.mq{animation:mq var(--dur,8s) ease-in-out infinite al
 .modal .sw{width:22px;height:22px;padding:0;border-radius:50%;border:2px solid var(--line);flex:none}
 .modal .sw:hover{border-color:var(--text)}
 .modal .auto.on{border-color:var(--accent);color:var(--accent)}
+.modal label.chk{display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;margin:6px 0 2px;cursor:pointer}
+.modal input[type=checkbox]{width:auto;margin:0}
 .modal .hint{font-size:11px;color:var(--dim);margin-top:2px}
 .modal .btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .prow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
@@ -850,6 +852,14 @@ body.log-only #logwrap{padding-top:0} body.log-only #log{border-radius:0;border:
     crow.appendChild(cinp); crow.appendChild(autoBtn);
     modal.appendChild(crow); modal.appendChild(chint); paintColor();
     f.color = { get value(){ return cauto ? '' : cinp.value; } };
+    // Beep macros: switch off for a printer that doesn't have them installed (the scanner works either way)
+    modal.appendChild(el('label', '', 'Beep macros (optional)'));
+    var bl = el('label', 'chk'), bchk = el('input');
+    bchk.type = 'checkbox'; bchk.checked = !(existing && existing.beeps_off);
+    bl.appendChild(bchk); bl.appendChild(el('span', '', 'Run the beep macros on this printer'));
+    modal.appendChild(bl);
+    modal.appendChild(el('div', 'hint', 'Only matters if you set up beeps (see docs/feedback.md). Untick it for a printer that does not have the macros installed. Scanning works either way.'));
+    f.beeps_off = { get value(){ return !bchk.checked; } };
     add('api_key', 'Moonraker API key (optional)', existing ? 'Leave blank to keep the current key.' : '', 'password', existing && existing.has_api_key ? '(unchanged)' : '');
     loadLocations();
     var res = el('div', 'res'); res.style.display = 'none';
@@ -927,6 +937,9 @@ def normalize_moonraker(raw):
     return raw
 
 
+MACRO_EVENTS = ("assigned", "cleared", "not_found")   # the events that have their own macro; the others reuse these
+
+
 def clean_printer_fields(body):
     """Validate the fields the web form can edit. Returns a dict with all keys present
     (empty string = not set). Raises ValueError with a message fit to show the user."""
@@ -947,6 +960,7 @@ def clean_printer_fields(body):
     if color and not re.fullmatch(r"#[0-9a-f]{6}", color):
         raise ValueError("Color must look like #e69f00")
     out["color"] = color
+    out["beeps_off"] = bool(body.get("beeps_off"))
     return out
 
 
@@ -1003,6 +1017,23 @@ class PrinterManager:
                 cfg.pop(key, None)
         if fields["api_key"]:          # blank = keep the existing key
             cfg["api_key"] = fields["api_key"]
+        # "Beep macros" switch: empty macro names in this printer's feedback.gcode turn them off for it
+        fb = dict(cfg.get("feedback") or {})
+        gc = dict(fb.get("gcode") or {})
+        if fields["beeps_off"]:
+            gc.update({e: "" for e in MACRO_EVENTS})
+        else:
+            for e in MACRO_EVENTS:
+                if gc.get(e) == "":
+                    del gc[e]
+        if gc:
+            fb["gcode"] = gc
+        else:
+            fb.pop("gcode", None)
+        if fb:
+            cfg["feedback"] = fb
+        else:
+            cfg.pop("feedback", None)
         return cfg
 
     def public_config(self):
@@ -1013,6 +1044,8 @@ class PrinterManager:
                 out.append({"name": c["name"], "moonraker": c["moonraker"],
                             "snapshot_url": c.get("snapshot_url", ""), "webcam": c.get("webcam", ""),
                             "location": c.get("location", ""), "color": c.get("color", ""),
+                            "beeps_off": all(((c.get("feedback") or {}).get("gcode") or {}).get(e) == ""
+                                             for e in MACRO_EVENTS),
                             "has_api_key": bool(c.get("api_key"))})
             return out
 

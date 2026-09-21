@@ -9,7 +9,8 @@
   "feedback": {
     "popup": true,
     "popup_seconds": 4,
-    "gcode": {
+    "_beeps_note": "OPTIONAL. Beeps at the printer need a few macros added to each printer first (see docs/feedback.md). The scanner works the same without them. When they are installed, rename \"_gcode\" below to \"gcode\".",
+    "_gcode": {
       "assigned": "SPOOL_SCAN_OK",
       "cleared": "SPOOL_SCAN_CLEARED",
       "not_found": "SPOOL_SCAN_ERROR"
