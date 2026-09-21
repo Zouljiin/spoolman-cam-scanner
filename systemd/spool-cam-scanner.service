@@ -1,0 +1,14 @@
+[Unit]
+Description=Spoolman camera QR scanner (printer webcams -> active spool)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Adjust the paths (and add User=) to match where you installed it.
+WorkingDirectory=/opt/spoolman-cam-scanner
+ExecStart=/opt/spoolman-cam-scanner/venv/bin/python spool_cam_scanner.py -c config.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

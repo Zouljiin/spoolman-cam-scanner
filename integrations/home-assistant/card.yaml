@@ -1,0 +1,7 @@
+# Home Assistant - Webpage card (dashboard -> edit -> add card -> Webpage, or paste as YAML).
+# Replace SCANNER_IP. If Home Assistant is served over HTTPS, an http:// page will be blocked
+# by the browser (mixed content) - see docs/dashboards.md.
+
+type: iframe
+url: http://SCANNER_IP:8090/?view=status&theme=dark
+aspect_ratio: 50%

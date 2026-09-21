@@ -1,0 +1,8 @@
+# Dashy (https://dashy.to) - add under a section's `widgets:` in conf.yml. Replace SCANNER_IP.
+# Check Dashy's iframe widget docs for the full list of options.
+
+widgets:
+  - type: iframe
+    options:
+      url: http://SCANNER_IP:8090/?view=log&theme=dark
+      frameHeight: 400
